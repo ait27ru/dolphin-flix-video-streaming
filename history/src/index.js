@@ -70,16 +70,26 @@ async function main() {
   const messageChannel = await messagingConnection.createChannel();
 
   //
-  // Asserts that we have a "viewed" queue.
+  // Asserts that we have a "viewed" exchange.
   //
-  await messageChannel.assertQueue("viewed", {});
-
-  console.log(`Created "viewed" queue.`);
+  await messageChannel.assertExchange("viewed", "fanout");
 
   //
-  // Start receiving messages from the "viewed" queue.
+  // Creates an anonyous queue.
   //
-  await messageChannel.consume("viewed", async (msg) => {
+  const { queue } = await messageChannel.assertQueue("", { exclusive: true });
+
+  console.log(`Created queue ${queue}, binding it to "viewed" exchange.`);
+
+  //
+  // Binds the queue to the exchange.
+  //
+  await messageChannel.bindQueue(queue, "viewed", "");
+
+  //
+  // Start receiving messages from the anonymous queue.
+  //
+  await messageChannel.consume(queue, async (msg) => {
     console.log("Received a 'viewed' message");
 
     const parsedMsg = JSON.parse(msg.content.toString()); // Parse the JSON message.
@@ -97,7 +107,7 @@ async function main() {
   app.get("/history", async (req, res) => {
     const skip = parseInt(req.query.skip);
     const limit = parseInt(req.query.limit);
-    const history = await historyCollection
+    const history = await videosCollection
       .find()
       .skip(skip)
       .limit(limit)

@@ -29,15 +29,17 @@ async function main() {
 
   const messageChannel = await messagingConnection.createChannel(); // Creates a RabbitMQ messaging channel.
 
+  await messageChannel.assertExchange("viewed", "fanout"); // Asserts that we have a "viewed" exchange.
+
   //
-  // Send the "viewed" to the history microservice.
+  // Broadcasts the "viewed" message to other microservices.
   //
-  function sendViewedMessage(messageChannel, videoPath) {
-    console.log(`Publishing message on "viewed" queue.`);
+  function broadcastViewedMessage(messageChannel, videoPath) {
+    console.log(`Publishing message on "viewed" exchange.`);
 
     const msg = { videoPath: videoPath };
     const jsonMsg = JSON.stringify(msg);
-    messageChannel.publish("", "viewed", Buffer.from(jsonMsg)); // Publishes message to the "viewed" queue.
+    messageChannel.publish("viewed", "", Buffer.from(jsonMsg)); // Publishes message to the "viewed" exchange.
   }
 
   const app = express();
@@ -55,7 +57,7 @@ async function main() {
 
     fs.createReadStream(videoPath).pipe(res);
 
-    sendViewedMessage(messageChannel, videoPath); // Sends the "viewed" message to indicate this video has been watched.
+    broadcastViewedMessage(messageChannel, videoPath); // Sends the "viewed" message to indicate this video has been watched.
   });
 
   app.listen(PORT, () => {
